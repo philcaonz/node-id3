@@ -1,4 +1,3 @@
-const fs = require('fs')
 const iconv = require("iconv-lite")
 
 module.exports = new NodeID3
@@ -122,43 +121,13 @@ function NodeID3() {
 */
 NodeID3.prototype.write = function(tags, filebuffer, fn) {
     let completeTag = this.create(tags)
-    if(filebuffer instanceof Buffer) {
-        filebuffer = this.removeTagsFromBuffer(filebuffer) || filebuffer
-        let completeBuffer = Buffer.concat([completeTag, filebuffer])
-        if(fn && typeof fn === 'function') {
-            fn(null, completeBuffer)
-            return
-        } else {
-            return completeBuffer
-        }
-    }
-
+    filebuffer = this.removeTagsFromBuffer(filebuffer) || filebuffer
+    let completeBuffer = Buffer.concat([completeTag, filebuffer])
     if(fn && typeof fn === 'function') {
-        try {
-            fs.readFile(filebuffer, function(err, data) {
-                if(err) {
-                    fn(err)
-                    return
-                }
-                data = this.removeTagsFromBuffer(data) || data
-                let rewriteFile = Buffer.concat([completeTag, data])
-                fs.writeFile(filebuffer, rewriteFile, 'binary', (err) => {
-                    fn(err)
-                })
-            }.bind(this))
-        } catch(err) {
-            fn(err)
-        }
+        fn(null, completeBuffer)
+        return
     } else {
-        try {
-            let data = fs.readFileSync(filebuffer)
-            data = this.removeTagsFromBuffer(data) || data
-            let rewriteFile = Buffer.concat([completeTag, data])
-            fs.writeFileSync(filebuffer, rewriteFile, 'binary')
-            return true
-        } catch(err) {
-            return err
-        }
+        return completeBuffer
     }
 }
 
@@ -227,22 +196,8 @@ NodeID3.prototype.read = function(filebuffer, options, fn) {
         options = {}
     }
     if(!fn || typeof fn !== 'function') {
-        if(typeof filebuffer === "string" || filebuffer instanceof String) {
-            filebuffer = fs.readFileSync(filebuffer)
-        }
         let tags = this.getTagsFromBuffer(filebuffer, options)
         return tags
-    } else {
-        if(typeof filebuffer === "string" || filebuffer instanceof String) {
-            fs.readFile(filebuffer, function(err, data) {
-                if(err) {
-                    fn(err, null)
-                } else {
-                    let tags = this.getTagsFromBuffer(data, options)
-                    fn(null, tags)
-                }
-            }.bind(this))
-        }
     }
 }
 
@@ -469,54 +424,6 @@ NodeID3.prototype.removeTagsFromBuffer = function(data) {
 }
 
 /*
-**  Checks and removes already written ID3-Frames from a file
-**  data => buffer
-*/
-NodeID3.prototype.removeTags = function(filepath, fn) {
-    if(!fn || typeof fn !== 'function') {
-        let data;
-        try {
-            data = fs.readFileSync(filepath)
-        } catch(e) {
-            return e
-        }
-
-        let newData = this.removeTagsFromBuffer(data)
-        if(!newData) {
-            return false
-        }
-
-        try {
-            fs.writeFileSync(filepath, newData, 'binary')
-        } catch(e) {
-            return e
-        }
-
-        return true
-    } else {
-        fs.readFile(filepath, function(err, data) {
-            if(err) {
-                fn(err)
-            }
-
-            let newData = this.removeTagsFromBuffer(data)
-            if(!newData) {
-                fn(err)
-                return
-            }
-
-            fs.writeFile(filepath, newData, 'binary', function(err) {
-                if(err) {
-                    fn(err)
-                } else {
-                    fn(false)
-                }
-            })
-        }.bind(this))
-    }
-}
-
-/*
 **  This function ensures that the msb of each byte is 0
 **  totalSize => int
 */
@@ -583,7 +490,7 @@ NodeID3.prototype.createPictureFrame = function(data) {
         if(data && data.imageBuffer && data.imageBuffer instanceof Buffer === true) {
             data = data.imageBuffer
         }
-        let apicData = (data instanceof Buffer == true) ? Buffer.from(data) : Buffer.from(fs.readFileSync(data, 'binary'), 'binary')
+        let apicData = Buffer.from(data)
         let bHeader = Buffer.alloc(10)
         bHeader.fill(0)
         bHeader.write("APIC", 0)
